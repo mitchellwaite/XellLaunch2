@@ -111,7 +111,6 @@ static void MessageBox(wchar_t *text)
 }
 
 char* devices[] = {
-	"\\Device\\Flash"
 	"\\Device\\Mass0\\",
 	"\\Device\\Mass1\\",
 	"\\Device\\Mass2\\",
@@ -164,21 +163,7 @@ DWORD readFile(const char* path)
 
 VOID __cdecl main()
 {
-	//MessageBox(L"Starting to load XeLL!");
-
-	/*
-	int i;
- check for xell.bin on mass0, mass1, mass2, hdd then CD; if found load it
-	for(i = 0; i < 5; i++)
-	{
-		Mount("xl:", devices[i]);
-		xellsize = readFile("xl:\\xell.bin");
-		if(xellsize != 0)
-			startXell(FALSE);
-	}
-	*/
-
-	// if not check in the launched xex path
+	// Try to load XeLL from one of the files adjacent to the xex
 	xellsize = readFile("GAME:\\xell-1f.bin");
 	if(xellsize != 0)
 		HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
@@ -191,10 +176,49 @@ VOID __cdecl main()
 	if(xellsize != 0)
 		HvxExecute(0x800000001c040000, (void *)xelldata, xellsize);
 
-	// If it's not beside the xex, or in the flashfs, try loading from NAND
+	// If we couldn't load XeLL from a file adjacent to the xex, look in the
+	// root of any attached devices (not the flashfs for now)
+	for(int i = 0; i < 5; i++)
+	{
+		Mount("XL:", devices[i]);
+
+		xellsize = readFile("XL:\\xell-1f.bin");
+		if(xellsize != 0)
+			HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
+	
+		xellsize = readFile("XL:\\xell-gggggg.bin");
+		if(xellsize != 0)
+			HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
+
+		xellsize = readFile("XL:\\xell-2f.bin");
+		if(xellsize != 0)
+			HvxExecute(0x800000001c040000, (void *)xelldata, xellsize);
+	}
+
+#if 0
+	// TODO fully implement at a later date
+
+	// If we couldn't load XeLL from a file adjacent to the xex, or from a device
+	// try from the flash filesystem. Should work for RGLoader and XDKBuild
+
+	// First we need to mount the flash filesystem...
+	Mount("FLASH:", "\\Device\\Flash");
+
+	// RGLoader and XDKBuild for non-JTAG stores xell-gggggg.bin in flash
+	xellsize = readFile("FLASH:\\xell-gggggg.bin");
+	if(xellsize != 0)
+		HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
+
+	// RGLoader for JTAG tbd, we're going to guess it's also in flash but uses xell-2f.bin
+	xellsize = readFile("FLASH:\\xell-2f.bin");
+	if(xellsize != 0)
+		HvxExecute(0x800000001c040000, (void *)xelldata, xellsize);
+
+	// If it's not beside the xex, on a defice, or in the flashfs, try loading from NAND
 	// TODO gotta implement this...
 	// - is the NAND memory mapped?
 	// - Do i have to manually read the pages?
+#endif
 
 	MessageBox(L"Couldn't find a suitable XeLL image to load!");
 
