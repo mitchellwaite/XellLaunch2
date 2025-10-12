@@ -267,6 +267,10 @@
   <ItemGroup>
     <ClCompile Include="xelllaunch.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="xex.xml" />
+    <None Include="xextool.exe" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
