@@ -112,7 +112,7 @@ DWORD readFile(const char* path)
 	HANDLE file = CreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if(file == INVALID_HANDLE_VALUE)
 		return read;
-	ReadFile(file, xelldata, 0x40000, &read, NULL);
+	ReadFile(file, xelldata, XELL_BINARY_LEN, &read, NULL);
 	CloseHandle(file);
 	return read;
 }
