@@ -59,7 +59,7 @@ void HvxExecute(uint64_t address, void *code, size_t length)
     XPhysicalFree(payload_buf);
 }
 
-static LPCWSTR buttons[1] = {L"Fuck!"};
+static LPCWSTR buttons[1] = {L"OK"};
 static MESSAGEBOX_RESULT result;
 static XOVERLAPPED overlapped;
 static void MessageBox(wchar_t *text)
