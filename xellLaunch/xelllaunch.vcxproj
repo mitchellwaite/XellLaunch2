@@ -262,7 +262,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="kernel.h" />
-    <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xelllaunch.cpp" />

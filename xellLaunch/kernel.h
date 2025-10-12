@@ -2,8 +2,6 @@
 #ifndef _KERNEL_DEFINES_H
 #define _KERNEL_DEFINES_H
 
-#include "types.h"
-
 #define CONSTANT_OBJECT_STRING(s)   { strlen( s ) / sizeof( OCHAR ), (strlen( s ) / sizeof( OCHAR ))+1, s }
 #define MAKE_STRING(s)   {(USHORT)(strlen(s)), (USHORT)((strlen(s))+1), s}
 
