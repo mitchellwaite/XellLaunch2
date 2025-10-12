@@ -6,52 +6,15 @@
 #include "kernel.h"
 #include <stdint.h>
 
-#define NAND_XELL_OFFSET 0x95060
-#ifdef __cplusplus
 extern "C" {
-#endif
-
-	HRESULT __stdcall ObCreateSymbolicLink( STRING*, STRING*);
+	HRESULT	__stdcall ObCreateSymbolicLink( STRING*, STRING*);
 	HRESULT __stdcall ObDeleteSymbolicLink( STRING* );
-
-	NTSYSAPI
-	DWORD
-	NTAPI
-	XexGetModuleHandle(
-		IN		PSZ moduleName,
-		IN OUT	PHANDLE hand
-		); 
-
+	DWORD	__stdcall XexGetModuleHandle( char * moduleName, HANDLE * handle );
 	// ie XexGetProcedureAddress(hand ,0x50, &addr) returns 0 on success
-	NTSYSAPI
-	DWORD
-	NTAPI
-	XexGetProcedureAddress(
-		IN		HANDLE hand,
-		IN		DWORD dwOrdinal,
-		IN		PVOID Address
-		);
-
-	NTSYSAPI
-	PVOID
-	NTAPI
-	MmGetPhysicalAddress(
-		IN		PVOID Address
-		);
-
-	NTSYSAPI
-	void
-	NTAPI
-	DbgPrint(
-		const char* s,
-		...
-		);
-
-#ifdef __cplusplus
+	DWORD	__stdcall XexGetProcedureAddress( HANDLE handle, DWORD dwOrdinal, void * address );
+	void *	__stdcall MmGetPhysicalAddress( void * address );
+	void	__stdcall DbgPrint(	const char* s, ... );
 }
-#endif
-
-
 
 HRESULT Mount(PCHAR szDrive, PCHAR szDevice)
 {
@@ -117,38 +80,19 @@ char* devices[] = {
 	"\\Device\\Harddisk0\\Partition1\\",
 	"\\Device\\Cdrom0\\",
 };
-char fileName[] = "xl:\\xell.bin";
+
+int xellNandOffsets[] = { 0x70000,    // Glitch, Glitch2, Glitch2m, DevGL: xell-gggggg
+                          0x95060,    // JTAG: xell-2f
+                          0x100000,   // XeLL-Only Image (Main XeLL)
+                          0xC0000,    // XeLL-Only Image (Backup XeLL)
+                          0xE0000,    // Unknown, but listed in libxenon updxell function
+                          0xB80000 }; // Unknown, but listed in libxenon updxell function
+
+#define XELL_DEST 0x800000001c000000
+#define XELL_2F_DEST 0x800000001c040000
 
 BYTE xelldata[0x40000];
 DWORD xellsize;
-
-void startXell(BOOL useNand)
-{
-//	UINT64 dest = 0x8000000013000000ULL; // xell-ll
-//	UINT64 dest = 0x800000001c000000ULL; // xell-1f
-	UINT64 dest = 0x800000001c040000ULL; // xell-2f
-	UINT64 src = 0x8000000000000000ULL;
-	UINT64 len = 0;
-
-	if(useNand)
-	{
-		//src = 0x80000200C8095060ULL
-		src = 0x80000200C8070000ULL;
-		len = len+0x10000;
-		DbgPrint("syscall - starting xell nand\n");
-		HvxExecute(dest, (void *)src, len);
-	}
-	else
-	{
-		/*PBYTE xell_buf = (PBYTE)XPhysicalAlloc(0x40000, MAXULONG_PTR, 0, MEM_LARGE_PAGES|PAGE_READWRITE|PAGE_NOCACHE);
-		ZeroMemory(xell_buf, 0x40000);
-		memcpy(xell_buf, xelldata, xellsize);
-		src = src+((DWORD)MmGetPhysicalAddress(xell_buf));
-		len = 0+((xellsize/4)& 0xFFFFFFFF);*/
-		DbgPrint("syscall - starting xell file\n");
-		HvxExecute(dest, (void *)xelldata, xellsize);
-	}
-}
 
 DWORD readFile(const char* path)
 {
@@ -166,15 +110,15 @@ VOID __cdecl main()
 	// Try to load XeLL from one of the files adjacent to the xex
 	xellsize = readFile("GAME:\\xell-1f.bin");
 	if(xellsize != 0)
-		HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
+		HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
 	
 	xellsize = readFile("GAME:\\xell-gggggg.bin");
 	if(xellsize != 0)
-		HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
+		HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
 
 	xellsize = readFile("GAME:\\xell-2f.bin");
 	if(xellsize != 0)
-		HvxExecute(0x800000001c040000, (void *)xelldata, xellsize);
+		HvxExecute(XELL_2F_DEST, (void *)xelldata, xellsize);
 
 	// If we couldn't load XeLL from a file adjacent to the xex, look in the
 	// root of any attached devices (not the flashfs for now)
@@ -184,15 +128,15 @@ VOID __cdecl main()
 
 		xellsize = readFile("XL:\\xell-1f.bin");
 		if(xellsize != 0)
-			HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
+			HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
 	
 		xellsize = readFile("XL:\\xell-gggggg.bin");
 		if(xellsize != 0)
-			HvxExecute(0x800000001c000000, (void *)xelldata, xellsize);
+			HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
 
 		xellsize = readFile("XL:\\xell-2f.bin");
 		if(xellsize != 0)
-			HvxExecute(0x800000001c040000, (void *)xelldata, xellsize);
+			HvxExecute(XELL_2F_DEST, (void *)xelldata, xellsize);
 	}
 
 #if 0
