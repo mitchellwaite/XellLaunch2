@@ -144,8 +144,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ImageXex>
-      <ConfigurationFile>
-      </ConfigurationFile>
+      <ConfigurationFile>xex.xml</ConfigurationFile>
       <AdditionalSections>
       </AdditionalSections>
     </ImageXex>
@@ -153,10 +152,11 @@
       <DeploymentFiles>$(RemoteRoot)=$(ImagePath);$(RemoteRoot)\media=$(OutDir)media</DeploymentFiles>
       <DeploymentType>CopyToHardDrive</DeploymentType>
       <DvdEmulationType>ZeroSeekTimes</DvdEmulationType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
     </Deploy>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>xextool -r a -m r -o $(OutDir)$(ProjectName)_retail.xex $(OutDir)$(ProjectName).xex</Command>
+      <Message>remove xex encryption and restrictions</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'">
@@ -207,8 +207,8 @@
       <DvdEmulationType>ZeroSeekTimes</DvdEmulationType>
     </Deploy>
     <PostBuildEvent>
-      <Message>remove encryption and restrictions</Message>
-      <Command>xextool -r a -m r $(OutDir)$(ProjectName).xex</Command>
+      <Message>remove xex encryption and restrictions</Message>
+      <Command>xextool -r a -m r -o $(OutDir)$(ProjectName)_retail.xex $(OutDir)$(ProjectName).xex</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_LTCG|Xbox 360'">
@@ -255,10 +255,11 @@
       <DeploymentFiles>$(RemoteRoot)=$(ImagePath);$(RemoteRoot)\media=$(OutDir)media</DeploymentFiles>
       <DeploymentType>EmulateDvd</DeploymentType>
       <DvdEmulationType>ZeroSeekTimes</DvdEmulationType>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
     </Deploy>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>xextool -r a -m r -o $(OutDir)$(ProjectName)_retail.xex $(OutDir)$(ProjectName).xex</Command>
+      <Message>remove xex encryption and restrictions</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
