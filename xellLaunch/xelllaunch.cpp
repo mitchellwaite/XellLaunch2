@@ -71,13 +71,26 @@ static void MessageBox(wchar_t *text)
     }
 }
 
-char* devices[] = {
+// Where we're going to search, if XeLL isn't found in GAME:
+char* xellDeviceSearchPathArr[] = {
 	"\\Device\\Mass0\\",
 	"\\Device\\Mass1\\",
 	"\\Device\\Mass2\\",
 	"\\Device\\Harddisk0\\Partition1\\",
 	"\\Device\\Cdrom0\\",
 };
+#define xellDeviceSearchPathArrLen 5
+
+// All possible XeLL binaries that the XeLL build can produce
+char* xellBinaryNameArr[] = {
+	"xell-1f.bin",
+	"xell-2f.bin",
+	"xell-gggggg.bin",
+	"xell-gggggg_cygnos_demon.bin",
+	"xell-1f_cygnos_demon.bin",
+	"xell-2f_cygnos_demon"
+};
+#define xellBinaryNameArrLen 6
 
 int xellNandOffsets[] = { 0x70000,    // Glitch, Glitch2, Glitch2m, DevGL: xell-gggggg
                           0x95060,    // JTAG: xell-2f
@@ -88,8 +101,9 @@ int xellNandOffsets[] = { 0x70000,    // Glitch, Glitch2, Glitch2m, DevGL: xell-
 
 #define XELL_DEST 0x800000001c000000
 #define XELL_2F_DEST 0x800000001c040000
+#define XELL_BINARY_LEN 0x40000
 
-BYTE xelldata[0x40000];
+BYTE xelldata[XELL_BINARY_LEN];
 DWORD xellsize;
 
 DWORD readFile(const char* path)
@@ -103,38 +117,63 @@ DWORD readFile(const char* path)
 	return read;
 }
 
+// Sanity check on the XeLL buffer we're trying to load. If the header bytes are
+// present in the buffer, we can be reasonably certain that we've loaded some
+// flavour of XeLL. J-Runner does a similar check when injecting XeLL.
+bool validateXellHeader(BYTE * xellBuf)
+{
+	BYTE xellHeaderBytes[] = {0x48, 0x00, 0x00, 0x20, 0x48, 0x00, 0x00, 0xEC, 0x48, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00 };
+
+	if( 0 == memcmp(xellBuf, xellHeaderBytes, 0x10))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void tryLoadXell(char * drive)
+{
+	char xellLoadPath[MAX_PATH];
+
+	for( int i = 0 ; i < xellBinaryNameArrLen; i++ )
+	{
+		// Construct a path from the specified drive and the list of xell binaries
+		sprintf_s(xellLoadPath,MAX_PATH,"%s\\%s",drive,xellBinaryNameArr[i]);
+		xellsize = readFile(xellLoadPath);
+
+		// Xell binaries should always be 256kb. Anything else is a corrupt file
+		// if this changes, XELL_BINARY_LEN will need to be updated, or perhaps
+		// a function implementation that can validate multiple sizes can be added
+		if(xellsize == XELL_BINARY_LEN && validateXellHeader(xelldata))
+		{
+			// xell-2f uses a different destination than the others.
+			// if the right dest isn't used, XeLL will hang
+			if(NULL != strstr(xellBinaryNameArr[i],"xell-2f"))
+			{
+				HvxExecute(XELL_2F_DEST, (void *)xelldata, xellsize);
+			}
+			else
+			{
+				HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
+			}
+		}
+	}
+}
+
 VOID __cdecl main()
 {
 	// Try to load XeLL from one of the files adjacent to the xex
-	xellsize = readFile("GAME:\\xell-1f.bin");
-	if(xellsize != 0)
-		HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
-	
-	xellsize = readFile("GAME:\\xell-gggggg.bin");
-	if(xellsize != 0)
-		HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
-
-	xellsize = readFile("GAME:\\xell-2f.bin");
-	if(xellsize != 0)
-		HvxExecute(XELL_2F_DEST, (void *)xelldata, xellsize);
+	tryLoadXell("GAME:");
 
 	// If we couldn't load XeLL from a file adjacent to the xex, look in the
 	// root of any attached devices (not the flashfs for now)
-	for(int i = 0; i < 5; i++)
+	for(int i = 0; i < xellDeviceSearchPathArrLen; i++)
 	{
-		Mount("XL:", devices[i]);
-
-		xellsize = readFile("XL:\\xell-1f.bin");
-		if(xellsize != 0)
-			HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
-	
-		xellsize = readFile("XL:\\xell-gggggg.bin");
-		if(xellsize != 0)
-			HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
-
-		xellsize = readFile("XL:\\xell-2f.bin");
-		if(xellsize != 0)
-			HvxExecute(XELL_2F_DEST, (void *)xelldata, xellsize);
+		Mount("XL:", xellDeviceSearchPathArr[i]);
+		tryLoadXell("XL:");
 	}
 
 #if 0
