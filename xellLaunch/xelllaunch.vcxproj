@@ -30,6 +30,7 @@
     <ProjectGuid>{652C7D60-BC02-4E09-96DD-930012345678}</ProjectGuid>
     <RootNamespace>LaunchData_sdk</RootNamespace>
     <Keyword>XenonProj</Keyword>
+    <ProjectName>XellLaunch2</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_LTCG|Win32'" Label="Configuration">
