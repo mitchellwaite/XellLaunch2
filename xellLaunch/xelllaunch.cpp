@@ -48,15 +48,13 @@ uint64_t __declspec(naked) HvxGetVersion(uint32_t magic, int op, uint64_t source
 
 void HvxExecute(uint64_t address, void *code, size_t length)
 {
-	size_t physicalLength = 0x40000;
-
     // allocate a buffer for our execute 
-    uint8_t *payload_buf = (uint8_t *)XPhysicalAlloc(physicalLength, MAXULONG_PTR, 0, PAGE_READWRITE);
+    uint8_t *payload_buf = (uint8_t *)XPhysicalAlloc(length, MAXULONG_PTR, 0, PAGE_READWRITE);
     uint64_t payload_addr = 0x8000000000000000 | (uint64_t)MmGetPhysicalAddress(payload_buf);
     memcpy(payload_buf, code, length);
     
 	// Call the FreeBoot backdoor
-	HvxGetVersion( HVX_MAGIC_NUMBER, 4, address, payload_addr, physicalLength );
+	HvxGetVersion( HVX_MAGIC_NUMBER, 4, address, payload_addr, length );
 
     XPhysicalFree(payload_buf);
 }
