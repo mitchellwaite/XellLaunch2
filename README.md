@@ -17,6 +17,8 @@ When looking for a binary to load, XellLaunch2 will check the following location
 - A disc in the DVD drive (`\\Device\\Cdrom0\\`)
 - The flash filesystem (`\\Device\\Flash`), XDKBuild and RGLoader store XeLL there
 - The logical NAND offset as used for JTAG images
+- If no suitable XeLL binary is found, it will launch a version of XeLL-2f embedded in XellLaunch2.xex
+
 
 A sanity check will be done on the header of each binary to ensure we're at least trying to load something that looks like XeLL.
 
@@ -29,7 +31,7 @@ Note, it does NOT support `xell-gggggg.bin` or loading from NAND on a Glitch/Gli
 - Visual Studio 2010
 - Xbox 360 SDK
 
-Clone the repository, open the `.sln`, and hit build. XellLaunch2.xex should be produced.
+Clone the repository, open the `.sln`, and hit build. XellLaunch2.xex (for devkits and the like) and XellLaunch2_retail.xex (for retail systems, no restrictions) will be produced.
 
 ## Future items to work on
 
