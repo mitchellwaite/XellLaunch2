@@ -15,14 +15,14 @@ When looking for a binary to load, XellLaunch2 will check the following location
 - Any attached USB drives (`\\Device\\Mass0`, `\\Device\\Mass1`, etc.)
 - The hard drive (`\\Device\\Harddisk0\\Partition1\\`)
 - A disc in the DVD drive (`\\Device\\Cdrom0\\`)
-- TODO: The flash filesystem (`\\Device\\Flash`), XDKBuild and RGLoader store XeLL there
-- TODO: The logical NAND offset as used for JTAG, Glitch, Glitch2, Glitch2m, DEVGL images
+- The flash filesystem (`\\Device\\Flash`), XDKBuild and RGLoader store XeLL there
+- The logical NAND offset as used for JTAG images
 
 A sanity check will be done on the header of each binary to ensure we're at least trying to load something that looks like XeLL.
 
 If no suitable XeLL binary was found, then an error message will be displayed and we'll be kicked back to the dash.
 
-Note, it does NOT support `xell.bin` as a renamed XeLL binary like the old XellLaunch, because loading XeLL in the wrong destination will make it hang at a black screen. I've run in to this too many times to count. We also don't support xell-gggggg as the current version hangs when started from a running system. I suspect the soc_init code is the culprit.
+Note, it does NOT support `xell-gggggg.bin` or loading from NAND on a Glitch/Glitch2/DevGL image as the current version of XeLL hangs when started from a running system. I suspect the soc_init code is the culprit. If you figure that out, please submit a patch to the Free60 XeLL reloaded repo.
 
 ## Req's to build
 
@@ -30,6 +30,11 @@ Note, it does NOT support `xell.bin` as a renamed XeLL binary like the old XellL
 - Xbox 360 SDK
 
 Clone the repository, open the `.sln`, and hit build. XellLaunch2.xex should be produced.
+
+## Future items to work on
+
+- XDKbuild support (it's missing the syscall 0 backdoor)
+- `xell-gggggg.bin` support, need to figure out the soc_init issue
 
 ## Credits
 
