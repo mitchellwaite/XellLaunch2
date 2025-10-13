@@ -6,8 +6,6 @@ It supports loading of any build produced by the upstream xell-reloaded reposito
 
 - xell-1f.bin
 - xell-2f.bin
-- xell-gggggg.bin
-- xell-gggggg_cygnos_demon.bin
 - xell-1f_cygnos_demon.bin
 - xell-2f_cygnos_demon
 
@@ -24,7 +22,7 @@ A sanity check will be done on the header of each binary to ensure we're at leas
 
 If no suitable XeLL binary was found, then an error message will be displayed and we'll be kicked back to the dash.
 
-Note, it does NOT support `xell.bin` as a renamed XeLL binary like the old XellLaunch, because loading XeLL in the wrong destination will make it hang at a black screen. I've run in to this too many times to count.
+Note, it does NOT support `xell.bin` as a renamed XeLL binary like the old XellLaunch, because loading XeLL in the wrong destination will make it hang at a black screen. I've run in to this too many times to count. We also don't support xell-gggggg as the current version hangs when started from a running system. I suspect the soc_init code is the culprit.
 
 ## Req's to build
 
