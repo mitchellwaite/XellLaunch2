@@ -1,75 +1,11 @@
-//--------------------------------------------------------------------------------------
-//	start xell from a xex, required documented hv patch below to work
-//--------------------------------------------------------------------------------------
 #include <xtl.h>
 #include <stdio.h>
-#include "kernel.h"
 #include <stdint.h>
 
-extern "C" {
-	HRESULT	__stdcall ObCreateSymbolicLink( STRING*, STRING*);
-	HRESULT __stdcall ObDeleteSymbolicLink( STRING* );
-	DWORD	__stdcall XexGetModuleHandle( char * moduleName, HANDLE * handle );
-	// ie XexGetProcedureAddress(hand ,0x50, &addr) returns 0 on success
-	DWORD	__stdcall XexGetProcedureAddress( HANDLE handle, DWORD dwOrdinal, void * address );
-	void *	__stdcall MmGetPhysicalAddress( void * address );
-	void	__stdcall DbgPrint(	const char* s, ... );
-}
-
-HRESULT Mount(PCHAR szDrive, PCHAR szDevice)
-{
-	CHAR szDestinationDrive[MAX_PATH];
-	sprintf_s(szDestinationDrive, MAX_PATH, "\\??\\%s", szDrive);
-	STRING DeviceName = MAKE_STRING(szDevice);
-	STRING LinkName = MAKE_STRING(szDestinationDrive);
-	ObDeleteSymbolicLink(&LinkName);
-	return (HRESULT)ObCreateSymbolicLink(&LinkName, &DeviceName);
-}
-
-// HvxGetVersion is the FreeBoot HV backdoor. op does the following:
-// 0 and 1 just return 1
-// 2 re-enables memory protection
-// 3 disables memory protection
-// 4 copies then jumps
-// 5 copies
-//
-// All we really need for XellLaunch is option 4, to copy data to HV space and jump to XeLL
-//
-#define HVX_MAGIC_NUMBER 0x72627472
-
-uint64_t __declspec(naked) HvxGetVersion(uint32_t magic, int op, uint64_t source, uint64_t dest, uint64_t length) {
-    __asm
-    {
-        li r0, 0x0
-        sc
-        blr
-    }
-}
-
-void HvxExecute(uint64_t address, void *code, size_t length)
-{
-    // allocate a buffer for our execute 
-    uint8_t *payload_buf = (uint8_t *)XPhysicalAlloc(length, MAXULONG_PTR, 0, PAGE_READWRITE);
-    uint64_t payload_addr = 0x8000000000000000 | (uint64_t)MmGetPhysicalAddress(payload_buf);
-    memcpy(payload_buf, code, length);
-    
-	// Call the FreeBoot backdoor
-	HvxGetVersion( HVX_MAGIC_NUMBER, 4, address, payload_addr, length );
-
-    XPhysicalFree(payload_buf);
-}
-
-static LPCWSTR buttons[1] = {L"OK"};
-static MESSAGEBOX_RESULT result;
-static XOVERLAPPED overlapped;
-static void MessageBox(wchar_t *text)
-{
-    if (XShowMessageBoxUI(XUSER_INDEX_ANY, L"XellLaunch2 Error", text, 1, buttons, 0, XMB_ERRORICON, &result, &overlapped) == ERROR_IO_PENDING)
-    {
-        while (!XHasOverlappedIoCompleted(&overlapped))
-            Sleep(50);
-    }
-}
+#include "kernel_funcs.h"
+#include "hv_funcs.h"
+#include "xell_2f.h"
+//#define DEBUG_MSGBOX 1
 
 // Where we're going to search, if XeLL isn't found in GAME:
 char* xellDeviceSearchPathArr[] = {
@@ -82,22 +18,31 @@ char* xellDeviceSearchPathArr[] = {
 #define xellDeviceSearchPathArrLen 5
 
 // All possible XeLL binaries that the XeLL build can produce
+// xell-gggggg is commented out since the soc init code hangs
+// when launched from an already running system. Fix TBD
 char* xellBinaryNameArr[] = {
 	"xell-1f.bin",
 	"xell-2f.bin",
-	"xell-gggggg.bin",
-	"xell-gggggg_cygnos_demon.bin",
+	//"xell-gggggg.bin",
+	//"xell-gggggg_cygnos_demon.bin",
 	"xell-1f_cygnos_demon.bin",
-	"xell-2f_cygnos_demon"
+	"xell-2f_cygnos_demon.bin"
 };
-#define xellBinaryNameArrLen 6
+#define xellBinaryNameArrLen 4
 
-int xellNandOffsets[] = { 0x70000,    // Glitch, Glitch2, Glitch2m, DevGL: xell-gggggg
-                          0x95060,    // JTAG: xell-2f
-                          0x100000,   // XeLL-Only Image (Main XeLL)
-                          0xC0000,    // XeLL-Only Image (Backup XeLL)
-                          0xE0000,    // Unknown, but listed in libxenon updxell function
-                          0xB80000 }; // Unknown, but listed in libxenon updxell function
+// Known locations of the XeLL binary in various NAND image types,
+// borrowed from the libxenon updxell() function. xell-gggggg is
+// commented out since the soc init code hangs when launched from
+// an already running system. Fix TBD
+int xellNandOffsetsArr[] = { //0x70000,  // Glitch, Glitch2, Glitch2m, DevGL: xell-gggggg
+                             0x95060,    // JTAG: xell-2f
+		   				     // We PROBABLY won't ever be looking here if we're running XellLaunch
+			   			     // but we might as well have them in the list just in case
+                             0x100000,   // XeLL-Only Image (Main XeLL)
+                             0xC0000,    // XeLL-Only Image (Backup XeLL)
+                             0xE0000,    // Unknown, but listed in libxenon updxell function
+                             0xB80000 }; // Unknown, but listed in libxenon updxell function
+#define xellNandOffsetsArrLen 5
 
 #define XELL_DEST 0x800000001c000000
 #define XELL_2F_DEST 0x800000001c040000
@@ -105,17 +50,6 @@ int xellNandOffsets[] = { 0x70000,    // Glitch, Glitch2, Glitch2m, DevGL: xell-
 
 BYTE xelldata[XELL_BINARY_LEN];
 DWORD xellsize;
-
-DWORD readFile(const char* path)
-{
-	DWORD read = 0;
-	HANDLE file = CreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if(file == INVALID_HANDLE_VALUE)
-		return read;
-	ReadFile(file, xelldata, XELL_BINARY_LEN, &read, NULL);
-	CloseHandle(file);
-	return read;
-}
 
 // Sanity check on the XeLL buffer we're trying to load. If the header bytes are
 // present in the buffer, we can be reasonably certain that we've loaded some
@@ -134,7 +68,7 @@ bool validateXellHeader(BYTE * xellBuf)
 	}
 }
 
-void tryLoadXell(char * drive)
+void tryLoadXellFromFilesystem(char * drive)
 {
 	char xellLoadPath[MAX_PATH];
 
@@ -142,7 +76,7 @@ void tryLoadXell(char * drive)
 	{
 		// Construct a path from the specified drive and the list of xell binaries
 		sprintf_s(xellLoadPath,MAX_PATH,"%s\\%s",drive,xellBinaryNameArr[i]);
-		xellsize = readFile(xellLoadPath);
+		xellsize = readFile(xellLoadPath, xelldata, XELL_BINARY_LEN);
 
 		// Xell binaries should always be 256kb. Anything else is a corrupt file
 		// if this changes, XELL_BINARY_LEN will need to be updated, or perhaps
@@ -153,45 +87,116 @@ void tryLoadXell(char * drive)
 			// if the right dest isn't used, XeLL will hang
 			if(NULL != strstr(xellBinaryNameArr[i],"xell-2f"))
 			{
+#ifdef DEBUG_MSGBOX
+				MessageBox(L"Found xell-2f on disk!");
+#endif
 				HvxExecute(XELL_2F_DEST, (void *)xelldata, xellsize);
 			}
 			else
 			{
+#ifdef DEBUG_MSGBOX
+				MessageBox(L"Found XeLL other than 2f on disk!");
+#endif
 				HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
 			}
 		}
 	}
 }
 
+void tryLoadXellFromNandOffset()
+{
+	HANDLE hFile;
+	OBJECT_ATTRIBUTES atFlash;
+	IO_STATUS_BLOCK ioFlash;
+	DWORD dwPos;
+	DWORD returnstatus;
+	STRING nFlash = MAKE_STRING("\\Device\\Flash");
+	atFlash.RootDirectory = 0;
+	atFlash.ObjectName = &nFlash;
+	atFlash.Attributes = FILE_ATTRIBUTE_DEVICE;
+
+	// Open the flash as a raw device
+	returnstatus = NtOpenFile(&hFile, GENERIC_READ, &atFlash, &ioFlash, OPEN_EXISTING, FILE_SYNCHRONOUS_IO_NONALERT);
+
+	if (returnstatus != 0)
+	{
+		return;
+	}
+
+	for(int i = 0; i<sizeof(xellNandOffsetsArr); i++)
+	{
+		dwPos = SetFilePointer(hFile, xellNandOffsetsArr[i], NULL, FILE_BEGIN);
+
+		if( dwPos != INVALID_SET_FILE_POINTER )
+		{
+			xellsize = 0;
+			ReadFile(hFile, xelldata, XELL_BINARY_LEN, &xellsize, NULL);
+
+			// Xell binaries should always be 256kb. Anything else is a corrupt file
+			// if this changes, XELL_BINARY_LEN will need to be updated, or perhaps
+			// a function implementation that can validate multiple sizes can be added
+			if(xellsize == XELL_BINARY_LEN && validateXellHeader(xelldata))
+			{
+				// xell-2f uses a different destination than the others.
+				// if the right dest isn't used, XeLL will hang
+				if(0x95060 == xellNandOffsetsArr[i])
+				{
+#ifdef DEBUG_MSGBOX
+				MessageBox(L"Found xell-2f XeLL in NAND!");
+#endif
+					HvxExecute(XELL_2F_DEST, (void *)xelldata, xellsize);
+				}
+				else
+				{
+#ifdef DEBUG_MSGBOX
+				MessageBox(L"Found XeLL other than 2f in NAND!");
+#endif
+					HvxExecute(XELL_DEST, (void *)xelldata, xellsize);
+				}
+			}
+		}
+	}
+
+	// If we've reached here, we couldn't find XeLL in flash (are we on a real devkit???)
+	// Close the flash file handle
+	NtClose(hFile);
+}
+
 VOID __cdecl main()
 {
+	if( !HvxIsSyscallZeroBackdoorInstalled() )
+	{
+		MessageBox(L"FreeBoot syscall 0 backdoor unavailable on this system.");
+		goto exit;
+	}
+
 	// Try to load XeLL from one of the files adjacent to the xex
-	tryLoadXell("GAME:");
+	tryLoadXellFromFilesystem("GAME:");
 
 	// If we couldn't load XeLL from a file adjacent to the xex, look in the
 	// root of any attached devices (not the flashfs for now)
 	for(int i = 0; i < xellDeviceSearchPathArrLen; i++)
 	{
-		Mount("XL:", xellDeviceSearchPathArr[i]);
-		tryLoadXell("XL:");
+		MountDrive("XL:", xellDeviceSearchPathArr[i]);
+		tryLoadXellFromFilesystem("XL:");
 	}
 
 	// If we couldn't load XeLL from a file adjacent to the xex, or from a device
-	// try from the flash filesystem. Should work for RGLoader and XDKBuild
-	// TODO: this hangs at a black screen on my RGLoader machine, but it boots
-	// XeLL fine from GAME:, USB, or the eject button. Figure it out later.
-#if 0
-	Mount("FLASH:", "\\Device\\Flash");
-	tryLoadXell("FLASH:");
-#endif
+	// try from the flash filesystem. Theoretically will work for RGLoader on a 
+	// JTAG system. XeLL-GGGGGG is commented out because it hangs on boot.
+	MountDrive("Flash:", "\\Device\\Flash");
+	tryLoadXellFromFilesystem("Flash:");
 
-	// If it's not beside the xex, on a defice, or in the flashfs, try loading from NAND
-	// TODO gotta implement this...
-	// - is the NAND memory mapped?
-	// - Do i have to manually read the pages?
+	// If we couldn't load XeLL from the flash filesystem, try to load it from
+	// a list of known NAND offsets. This will work for JTAG systems, XeLL-GGGGGG
+	// is commented out for now because it hangs on boot
+	tryLoadXellFromNandOffset();
 
-	MessageBox(L"Couldn't find a suitable XeLL image to load!");
+	MessageBox(L"Couldn't find a suitable XeLL image to load... we're gonna try the embedded xell-2f.");
 
+	HvxExecute(XELL_2F_DEST, (void *)xell_2f_bin, xell_2f_bin_len);
+
+exit:
 	// all else fails (it'll crash first unless the patches are missing) just drop back to dash
 	XLaunchNewImage(XLAUNCH_KEYWORD_DEFAULT_APP, 0);
 }

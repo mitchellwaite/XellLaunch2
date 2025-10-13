@@ -263,7 +263,9 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="kernel.h" />
+    <ClInclude Include="hv_funcs.h" />
+    <ClInclude Include="kernel_funcs.h" />
+    <ClInclude Include="xell_2f.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xelllaunch.cpp" />

@@ -1,6 +1,7 @@
+#include <xtl.h>
 
-#ifndef _KERNEL_DEFINES_H
-#define _KERNEL_DEFINES_H
+#ifndef _XELLLAUNCH_KERNEL_FUNCS_H
+#define _XELLLAUNCH_KERNEL_FUNCS_H
 
 #define CONSTANT_OBJECT_STRING(s)   { strlen( s ) / sizeof( OCHAR ), (strlen( s ) / sizeof( OCHAR ))+1, s }
 #define MAKE_STRING(s)   {(USHORT)(strlen(s)), (USHORT)((strlen(s))+1), s}
@@ -105,10 +106,55 @@ typedef struct _FILE_NETWORK_OPEN_INFORMATION {
   ULONG  FileAttributes;
 } FILE_NETWORK_OPEN_INFORMATION, *PFILE_NETWORK_OPEN_INFORMATION;
 
+// Kernel functions we want to export
+extern "C" {
+	HRESULT	__stdcall ObCreateSymbolicLink( STRING*, STRING*);
+	HRESULT __stdcall ObDeleteSymbolicLink( STRING* );
+	DWORD	__stdcall XexGetModuleHandle( char * moduleName, HANDLE * handle );
+	// ie XexGetProcedureAddress(hand ,0x50, &addr) returns 0 on success
+	DWORD	__stdcall XexGetProcedureAddress( HANDLE handle, DWORD dwOrdinal, void * address );
+	void *	__stdcall MmGetPhysicalAddress( void * address );
+	void	__stdcall DbgPrint(	const char* s, ... );
+	NTSTATUS		  NtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, DWORD ShareAccess, DWORD OpenOptions);
+	NTSTATUS		  NtClose(HANDLE Handle);
+}
 
+HRESULT MountDrive(PCHAR szDrive, PCHAR szDevice)
+{
+	CHAR szDestinationDrive[MAX_PATH];
+	sprintf_s(szDestinationDrive, MAX_PATH, "\\??\\%s", szDrive);
+	STRING DeviceName = MAKE_STRING(szDevice);
+	STRING LinkName = MAKE_STRING(szDestinationDrive);
+	ObDeleteSymbolicLink(&LinkName);
+	return (HRESULT)ObCreateSymbolicLink(&LinkName, &DeviceName);
+}
 
+DWORD readFile(const char* path, BYTE * buffer, size_t bufferLen)
+{
+	DWORD read = 0;
+	HANDLE file = CreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(file == INVALID_HANDLE_VALUE)
+		return read;
+	ReadFile(file, buffer, bufferLen, &read, NULL);
+	CloseHandle(file);
+	return read;
+}
 
+static void MessageBox(wchar_t *text)
+{
+	static LPCWSTR buttons[1] = {L"OK"};
+	static MESSAGEBOX_RESULT result;
+	static XOVERLAPPED overlapped;
 
+	memset(&overlapped, 0, sizeof(overlapped));
+	memset(&result, 0, sizeof(result));
 
-#endif	//_KERNEL_DEFINES_H
+    if (XShowMessageBoxUI(XUSER_INDEX_ANY, L"XellLaunch2", text, 1, buttons, 0, XMB_ERRORICON, &result, &overlapped) == ERROR_IO_PENDING)
+    {
+        while (!XHasOverlappedIoCompleted(&overlapped))
+            Sleep(50);
+    }
+}
+
+#endif	//_XELLLAUNCH_KERNEL_FUNCS_H
 
