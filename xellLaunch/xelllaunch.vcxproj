@@ -208,7 +208,7 @@
     </Deploy>
     <PostBuildEvent>
       <Message>remove xex encryption and restrictions</Message>
-      <Command>xextool -r a -m r -c u -e u -o $(OutDir)$(ProjectName)_retail.xex $(OutDir)$(ProjectName).xex</Command>
+      <Command>xextool -r a -m r -c u -e u -o $(OutDir)default.xex $(OutDir)$(ProjectName).xex</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_LTCG|Xbox 360'">
