@@ -5,4 +5,14 @@
   <format>
     <raw/>
   </format>
+
+  <format>
+    <compressed/>
+  </format>
+
+  <mediatypes>
+    <allpackages/>
+  </mediatypes>
+
+  <version major="2" minor="0" build="1888" qfe="0"/>
 </xex>

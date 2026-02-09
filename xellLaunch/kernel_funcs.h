@@ -156,5 +156,14 @@ static void MessageBox(wchar_t *text)
     }
 }
 
+static void DebugMessageBox(wchar_t *text)
+{
+#ifdef DEBUG_MSGBOX
+		MessageBox(text);
+#else
+		return;
+#endif
+}
+
 #endif	//_XELLLAUNCH_KERNEL_FUNCS_H
 
