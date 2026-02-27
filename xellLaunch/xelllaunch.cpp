@@ -23,18 +23,18 @@ char* xellDeviceSearchPathArr[] = {
 char* xellBinaryNameArr[] = {
 	"xell-1f.bin",
 	"xell-2f.bin",
-	//"xell-gggggg.bin",
-	//"xell-gggggg_cygnos_demon.bin",
+	"xell-gggggg.bin",
+	"xell-gggggg_cygnos_demon.bin",
 	"xell-1f_cygnos_demon.bin",
 	"xell-2f_cygnos_demon.bin"
 };
-#define xellBinaryNameArrLen 4
+#define xellBinaryNameArrLen 6
 
 // Known locations of the XeLL binary in various NAND image types,
 // borrowed from the libxenon updxell() function. xell-gggggg is
 // commented out since the soc init code hangs when launched from
-// an already running system. Fix TBD
-int xellNandOffsetsArr[] = { //0x70000,  // Glitch, Glitch2, Glitch2m, DevGL: xell-gggggg
+// an already running system.
+int xellNandOffsetsArr[] = { 0x70000,  // Glitch, Glitch2, Glitch2m, DevGL: xell-gggggg
                              0x95060,    // JTAG: xell-2f
 		   				     // We PROBABLY won't ever be looking here if we're running XellLaunch
 			   			     // but we might as well have them in the list just in case
@@ -42,7 +42,7 @@ int xellNandOffsetsArr[] = { //0x70000,  // Glitch, Glitch2, Glitch2m, DevGL: xe
                              0xC0000,    // XeLL-Only Image (Backup XeLL)
                              0xE0000,    // Unknown, but listed in libxenon updxell function
                              0xB80000 }; // Unknown, but listed in libxenon updxell function
-#define xellNandOffsetsArrLen 5
+#define xellNandOffsetsArrLen 6
 
 #define XELL_DEST 0x800000001c000000
 #define XELL_2F_DEST 0x800000001c040000
@@ -182,14 +182,12 @@ VOID __cdecl main()
 	}
 
 	// If we couldn't load XeLL from a file adjacent to the xex, or from a device
-	// try from the flash filesystem. Theoretically will work for RGLoader on a 
-	// JTAG system. XeLL-GGGGGG is commented out because it hangs on boot.
+	// try from the flash filesystem.
 	MountDrive("Flash:", "\\Device\\Flash");
 	tryLoadXellFromFilesystem("Flash:");
 
 	// If we couldn't load XeLL from the flash filesystem, try to load it from
-	// a list of known NAND offsets. This will work for JTAG systems, XeLL-GGGGGG
-	// is commented out for now because it hangs on boot
+	// a list of known NAND offsets.
 	tryLoadXellFromNandOffset();
 
 	MessageBox(L"Couldn't find a suitable XeLL image to load... we're gonna try the embedded xell-2f.");
