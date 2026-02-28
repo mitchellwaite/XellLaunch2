@@ -35,8 +35,7 @@ Clone the repository, open the `.sln`, and hit build. XellLaunch2.xex (for devki
 
 ## Future items to work on
 
-- XDKbuild support (it's missing the syscall 0 backdoor)
-- `xell-gggggg.bin` support, need to figure out the soc_init issue
+- XDKbuild support (it's missing the syscall 0 backdoor, would need to use hvx expansions). RGL has syscall 0 so it works fine.
 
 ## Credits
 
